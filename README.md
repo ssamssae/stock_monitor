@@ -1,6 +1,8 @@
 # stock_monitor
 
-A new Flutter project.
+주식 모니터링 Flutter 앱 (com.daejongkang.stock_monitor)
+
+관심종목 목록 조회 + 상세 차트 화면. http / shared_preferences / fl_chart 사용.
 
 ## Getting Started
 
