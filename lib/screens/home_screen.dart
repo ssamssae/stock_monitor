@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/stock.dart';
-import '../services/stock_service.dart';
+import '../services/krx_service.dart';
 import '../services/watchlist_service.dart';
 import 'detail_screen.dart';
 
@@ -12,7 +12,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _service = StockService();
+  final _service = KrxService();
   final _watchlistService = WatchlistService();
 
   List<Stock> _watchlist = [];
