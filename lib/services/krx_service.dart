@@ -85,8 +85,12 @@ class KrxService {
 
     final row = rows.first as Map<String, dynamic>;
     final price = _parseNum(row['CLSPRC'] as String? ?? '0');
+    // KRX provides FLUC_RT (등락률 전일대비) directly — prefer it over open-based calc.
+    final flucRt = double.tryParse(
+        (row['FLUC_RT'] as String? ?? '').replaceAll(',', ''));
     final open = _parseNum(row['OPNPRC'] as String? ?? '0');
-    final changeRate = open > 0 ? (price - open) / open * 100 : 0.0;
+    final changeRate = flucRt ??
+        (open > 0 ? (price - open) / open * 100 : 0.0);
     return stock.copyWith(price: price, changeRate: changeRate);
   }
 
