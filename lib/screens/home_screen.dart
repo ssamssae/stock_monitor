@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/stock.dart';
 import '../services/stock_service.dart';
+import '../services/watchlist_service.dart';
 import 'detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -11,16 +12,11 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  static const _watchlist = [
-    Stock(code: '005930', name: '삼성전자'),
-    Stock(code: '000660', name: 'SK하이닉스'),
-    Stock(code: '035420', name: 'NAVER'),
-    Stock(code: '005380', name: '현대차'),
-    Stock(code: '051910', name: 'LG화학'),
-  ];
-
   final _service = StockService();
-  List<Stock> _stocks = _watchlist;
+  final _watchlistService = WatchlistService();
+
+  List<Stock> _watchlist = [];
+  List<Stock> _stocks = [];
   bool _loading = true;
   String? _error;
   DateTime? _lastUpdated;
@@ -28,10 +24,23 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _fetch();
+    _init();
+  }
+
+  Future<void> _init() async {
+    final saved = await _watchlistService.load();
+    setState(() => _watchlist = saved);
+    await _fetch();
   }
 
   Future<void> _fetch() async {
+    if (_watchlist.isEmpty) {
+      setState(() {
+        _stocks = [];
+        _loading = false;
+      });
+      return;
+    }
     setState(() {
       _loading = true;
       _error = null;
@@ -53,6 +62,31 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     }
+  }
+
+  Future<void> _addStock() async {
+    final result = await showDialog<Stock>(
+      context: context,
+      builder: (_) => const _AddStockDialog(),
+    );
+    if (result == null || !mounted) return;
+    if (_watchlist.any((s) => s.code == result.code)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${result.code} 은(는) 이미 추가되어 있어요')),
+      );
+      return;
+    }
+    setState(() => _watchlist = [..._watchlist, result]);
+    await _watchlistService.save(_watchlist);
+    await _fetch();
+  }
+
+  Future<void> _removeStock(Stock stock) async {
+    setState(() {
+      _watchlist = _watchlist.where((s) => s.code != stock.code).toList();
+      _stocks = _stocks.where((s) => s.code != stock.code).toList();
+    });
+    await _watchlistService.save(_watchlist);
   }
 
   @override
@@ -79,21 +113,27 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: _buildBody(),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _addStock,
+        tooltip: '종목 추가',
+        child: const Icon(Icons.add),
+      ),
     );
   }
 
   Widget _buildBody() {
-    if (_loading && _stocks == _watchlist) {
+    if (_loading && _stocks.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (_error != null && _stocks == _watchlist) {
+    if (_error != null && _stocks.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.error_outline, size: 48, color: Colors.grey),
             const SizedBox(height: 12),
-            Text('데이터를 불러올 수 없어요', style: Theme.of(context).textTheme.titleMedium),
+            Text('데이터를 불러올 수 없어요',
+                style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 4),
             Text(_error!, style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 16),
@@ -102,29 +142,64 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     }
+    if (_watchlist.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.add_chart, size: 64, color: Colors.grey),
+            const SizedBox(height: 12),
+            Text('관심종목을 추가해보세요',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text('우측 하단 + 버튼으로 종목 코드를 입력하세요',
+                style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
+      );
+    }
 
+    final displayList = _stocks.isNotEmpty ? _stocks : _watchlist;
     return RefreshIndicator(
       onRefresh: _fetch,
       child: Stack(
         children: [
           ListView.separated(
             physics: const AlwaysScrollableScrollPhysics(),
-            itemCount: _stocks.length,
+            itemCount: displayList.length,
             separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, i) => _StockTile(
-              stock: _stocks[i],
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => DetailScreen(stock: _stocks[i])),
-              ),
-            ),
+            itemBuilder: (context, i) {
+              final stock = displayList[i];
+              return Dismissible(
+                key: ValueKey(stock.code),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  color: Colors.red,
+                  child:
+                      const Icon(Icons.delete_outline, color: Colors.white),
+                ),
+                onDismissed: (_) => _removeStock(stock),
+                child: _StockTile(
+                  stock: stock,
+                  onTap: _stocks.isNotEmpty
+                      ? () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => DetailScreen(stock: stock)),
+                          )
+                      : null,
+                ),
+              );
+            },
           ),
           if (_loading)
             const Positioned(
-              top: 8,
+              top: 0,
               left: 0,
               right: 0,
-              child: Center(child: LinearProgressIndicator()),
+              child: LinearProgressIndicator(),
             ),
         ],
       ),
@@ -132,11 +207,86 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
+class _AddStockDialog extends StatefulWidget {
+  const _AddStockDialog();
+
+  @override
+  State<_AddStockDialog> createState() => _AddStockDialogState();
+}
+
+class _AddStockDialogState extends State<_AddStockDialog> {
+  final _codeCtrl = TextEditingController();
+  final _nameCtrl = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+
+  @override
+  void dispose() {
+    _codeCtrl.dispose();
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('종목 추가'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _codeCtrl,
+              decoration: const InputDecoration(
+                labelText: '종목 코드',
+                hintText: '예: 005930',
+              ),
+              keyboardType: TextInputType.number,
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? '종목 코드를 입력하세요' : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _nameCtrl,
+              decoration: const InputDecoration(
+                labelText: '종목명',
+                hintText: '예: 삼성전자',
+              ),
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? '종목명을 입력하세요' : null,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('취소'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (_formKey.currentState!.validate()) {
+              Navigator.pop(
+                context,
+                Stock(
+                  code: _codeCtrl.text.trim(),
+                  name: _nameCtrl.text.trim(),
+                ),
+              );
+            }
+          },
+          child: const Text('추가'),
+        ),
+      ],
+    );
+  }
+}
+
 class _StockTile extends StatelessWidget {
   final Stock stock;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
-  const _StockTile({required this.stock, required this.onTap});
+  const _StockTile({required this.stock, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -149,11 +299,14 @@ class _StockTile extends StatelessWidget {
 
     return ListTile(
       onTap: onTap,
-      title: Text(stock.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(stock.code, style: Theme.of(context).textTheme.bodySmall),
+      title: Text(stock.name,
+          style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle:
+          Text(stock.code, style: Theme.of(context).textTheme.bodySmall),
       trailing: stock.price == 0
           ? const SizedBox(
-              width: 20, height: 20,
+              width: 20,
+              height: 20,
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : Column(
@@ -162,7 +315,8 @@ class _StockTile extends StatelessWidget {
               children: [
                 Text(
                   '${_fmt(stock.price)}원',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 15),
                 ),
                 Text(
                   '${up ? '+' : ''}${stock.changeRate.toStringAsFixed(2)}%',
