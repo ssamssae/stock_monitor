@@ -1,7 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../models/stock.dart';
-import '../services/stock_service.dart';
+import '../services/krx_service.dart';
 
 class DetailScreen extends StatefulWidget {
   final Stock stock;
@@ -13,7 +13,7 @@ class DetailScreen extends StatefulWidget {
 }
 
 class _DetailScreenState extends State<DetailScreen> {
-  final _service = StockService();
+  final _service = KrxService();
   late Stock _stock;
   bool _loading = true;
   String? _error;
@@ -36,7 +36,7 @@ class _DetailScreenState extends State<DetailScreen> {
       _error = null;
     });
     try {
-      final updated = await _service.fetchStock(widget.stock);
+      final updated = await _service.fetchWithCandles(widget.stock);
       if (mounted) {
         setState(() {
           _stock = updated;
