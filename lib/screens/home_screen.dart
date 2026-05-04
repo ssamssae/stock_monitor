@@ -217,12 +217,14 @@ class _AddStockDialog extends StatefulWidget {
 class _AddStockDialogState extends State<_AddStockDialog> {
   final _codeCtrl = TextEditingController();
   final _nameCtrl = TextEditingController();
+  final _targetCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   @override
   void dispose() {
     _codeCtrl.dispose();
     _nameCtrl.dispose();
+    _targetCtrl.dispose();
     super.dispose();
   }
 
@@ -255,6 +257,21 @@ class _AddStockDialogState extends State<_AddStockDialog> {
               validator: (v) =>
                   (v == null || v.trim().isEmpty) ? '종목명을 입력하세요' : null,
             ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _targetCtrl,
+              decoration: const InputDecoration(
+                labelText: '목표가 (선택)',
+                hintText: '예: 70000',
+              ),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return null;
+                if (double.tryParse(v.trim()) == null) return '숫자로 입력하세요';
+                return null;
+              },
+            ),
           ],
         ),
       ),
@@ -266,11 +283,15 @@ class _AddStockDialogState extends State<_AddStockDialog> {
         ElevatedButton(
           onPressed: () {
             if (_formKey.currentState!.validate()) {
+              final targetRaw = _targetCtrl.text.trim();
               Navigator.pop(
                 context,
                 Stock(
                   code: _codeCtrl.text.trim(),
                   name: _nameCtrl.text.trim(),
+                  targetPrice: targetRaw.isEmpty
+                      ? null
+                      : double.tryParse(targetRaw),
                 ),
               );
             }
@@ -313,10 +334,23 @@ class _StockTile extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  '${_fmt(stock.price)}원',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 15),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (stock.targetPrice != null &&
+                        stock.price >= stock.targetPrice!)
+                      const Padding(
+                        padding: EdgeInsets.only(right: 4),
+                        child: Text('⬆️',
+                            style: TextStyle(
+                                fontSize: 13, color: Colors.green)),
+                      ),
+                    Text(
+                      '${_fmt(stock.price)}원',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                  ],
                 ),
                 Text(
                   '${up ? '+' : ''}${stock.changeRate.toStringAsFixed(2)}%',
