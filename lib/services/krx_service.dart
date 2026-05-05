@@ -30,10 +30,12 @@ class KrxService {
   /// 현재가만 조회 (홈 화면 목록용)
   Future<Stock> fetchStock(Stock stock) async {
     try {
-      return await _fetchPriceFromKrx(stock);
+      final s = await _fetchPriceFromKrx(stock);
+      return s.copyWith(dataSource: DataSource.krx);
     } catch (_) {
       try {
-        return await _fetchFromYahoo(stock, range: '5d');
+        final s = await _fetchFromYahoo(stock, range: '5d');
+        return s.copyWith(dataSource: DataSource.yahoo);
       } catch (_) {
         return _mockFallback(stock);
       }
@@ -45,10 +47,11 @@ class KrxService {
     try {
       final price = await _fetchPriceFromKrx(stock);
       final candles = await _fetchCandlesFromKrx(stock);
-      return price.copyWith(candles: candles);
+      return price.copyWith(candles: candles, dataSource: DataSource.krx);
     } catch (_) {
       try {
-        return await _fetchFromYahoo(stock, range: '1mo');
+        final s = await _fetchFromYahoo(stock, range: '1mo');
+        return s.copyWith(dataSource: DataSource.yahoo);
       } catch (_) {
         return _mockFallback(stock);
       }
@@ -57,6 +60,56 @@ class KrxService {
 
   Future<List<Stock>> fetchAll(List<Stock> stocks) =>
       Future.wait(stocks.map(fetchStock));
+
+  /// KOSPI·KOSDAQ 지수 조회 (홈 헤더용)
+  /// 실패 시 null 반환
+  Future<({double kospi, double kospiChange, double kosdaq, double kosdaqChange})?> fetchIndex() async {
+    try {
+      final otp = await _getOtp({
+        'bld': 'dbms/MDC/STAT/standard/MDCSTAT00101',
+        'mktId': 'ALL',
+        'trdDd': _kstToday(),
+        'csvxls_isNo': 'false',
+      });
+      final dataRes = await http
+          .post(
+            Uri.parse('$_baseUrl$_dataPath'),
+            headers: _krxHeaders,
+            body: 'code=$otp',
+          )
+          .timeout(const Duration(seconds: 5));
+      if (dataRes.statusCode != 200) return null;
+
+      final rows = jsonDecode(dataRes.body)['output'] as List?;
+      if (rows == null || rows.isEmpty) return null;
+
+      double kospi = 0, kospiChange = 0, kosdaq = 0, kosdaqChange = 0;
+      for (final item in rows) {
+        final row = item as Map<String, dynamic>;
+        final mktNm = (row['IDX_NM'] as String? ?? '');
+        final val = _parseNum(row['CLSPRC_IDX'] as String? ?? '0');
+        final chg = double.tryParse(
+                (row['FLUC_RT'] as String? ?? '').replaceAll(',', '')) ??
+            0.0;
+        if (mktNm.contains('코스피') && !mktNm.contains('200')) {
+          kospi = val;
+          kospiChange = chg;
+        } else if (mktNm.contains('코스닥') && !mktNm.contains('150')) {
+          kosdaq = val;
+          kosdaqChange = chg;
+        }
+      }
+      if (kospi == 0 && kosdaq == 0) return null;
+      return (
+        kospi: kospi,
+        kospiChange: kospiChange,
+        kosdaq: kosdaq,
+        kosdaqChange: kosdaqChange
+      );
+    } catch (_) {
+      return null;
+    }
+  }
 
   // ── KRX OTP API ──────────────────────────────────────────
 
@@ -201,6 +254,7 @@ class KrxService {
   Stock _mockFallback(Stock stock) => stock.copyWith(
         price: _mockPrices[stock.code] ?? 50000,
         changeRate: 0.0,
+        dataSource: DataSource.mock,
       );
 
   static String _formEncode(Map<String, String> params) => params.entries
