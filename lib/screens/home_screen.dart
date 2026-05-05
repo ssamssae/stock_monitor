@@ -20,6 +20,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
   String? _error;
   DateTime? _lastUpdated;
+  ({double kospi, double kospiChange, double kosdaq, double kosdaqChange})? _index;
 
   @override
   void initState() {
@@ -39,6 +40,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _stocks = [];
         _loading = false;
       });
+      _fetchIndex();
       return;
     }
     setState(() {
@@ -46,10 +48,14 @@ class _HomeScreenState extends State<HomeScreen> {
       _error = null;
     });
     try {
-      final updated = await _service.fetchAll(_watchlist);
+      final results = await Future.wait([
+        _service.fetchAll(_watchlist),
+        _service.fetchIndex(),
+      ]);
       if (mounted) {
         setState(() {
-          _stocks = updated;
+          _stocks = results[0] as List<Stock>;
+          _index = results[1] as ({double kospi, double kospiChange, double kosdaq, double kosdaqChange})?;
           _loading = false;
           _lastUpdated = DateTime.now();
         });
@@ -62,6 +68,11 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     }
+  }
+
+  Future<void> _fetchIndex() async {
+    final idx = await _service.fetchIndex();
+    if (mounted) setState(() => _index = idx);
   }
 
   Future<void> _addStock() async {
@@ -94,6 +105,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('관심종목'),
+        bottom: _index != null ? PreferredSize(
+          preferredSize: const Size.fromHeight(28),
+          child: _IndexBar(index: _index!),
+        ) : null,
         actions: [
           if (_lastUpdated != null)
             Padding(
@@ -322,8 +337,15 @@ class _StockTile extends StatelessWidget {
       onTap: onTap,
       title: Text(stock.name,
           style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle:
+      subtitle: Row(
+        children: [
           Text(stock.code, style: Theme.of(context).textTheme.bodySmall),
+          if (stock.dataSource != null) ...[
+            const SizedBox(width: 4),
+            _SourceBadge(stock.dataSource!),
+          ],
+        ],
+      ),
       trailing: stock.price == 0
           ? const SizedBox(
               width: 20,
@@ -369,5 +391,81 @@ class _StockTile extends StatelessWidget {
           );
     }
     return price.toStringAsFixed(0);
+  }
+}
+
+class _IndexBar extends StatelessWidget {
+  final ({double kospi, double kospiChange, double kosdaq, double kosdaqChange}) index;
+
+  const _IndexBar({required this.index});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 28,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(180),
+      child: Row(
+        children: [
+          _IndexChip('KOSPI', index.kospi, index.kospiChange),
+          const SizedBox(width: 20),
+          _IndexChip('KOSDAQ', index.kosdaq, index.kosdaqChange),
+        ],
+      ),
+    );
+  }
+}
+
+class _IndexChip extends StatelessWidget {
+  final String label;
+  final double value;
+  final double change;
+
+  const _IndexChip(this.label, this.value, this.change);
+
+  @override
+  Widget build(BuildContext context) {
+    final up = change >= 0;
+    final color = up ? Colors.red : Colors.blue;
+    if (value == 0) return const SizedBox.shrink();
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('$label ', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+        Text(value.toStringAsFixed(2), style: const TextStyle(fontSize: 11)),
+        const SizedBox(width: 3),
+        Text(
+          '${up ? '+' : ''}${change.toStringAsFixed(2)}%',
+          style: TextStyle(fontSize: 11, color: color),
+        ),
+      ],
+    );
+  }
+}
+
+class _SourceBadge extends StatelessWidget {
+  final DataSource source;
+
+  const _SourceBadge(this.source);
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, color) = switch (source) {
+      DataSource.krx => ('KRX', Colors.green),
+      DataSource.yahoo => ('Yahoo', Colors.orange),
+      DataSource.mock => ('Mock', Colors.grey),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      decoration: BoxDecoration(
+        color: color.withAlpha(30),
+        border: Border.all(color: color.withAlpha(100)),
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 9, color: color, fontWeight: FontWeight.w600),
+      ),
+    );
   }
 }

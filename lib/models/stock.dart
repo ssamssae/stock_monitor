@@ -1,3 +1,5 @@
+enum DataSource { krx, yahoo, mock }
+
 class Candle {
   final DateTime date;
   final double close;
@@ -12,6 +14,7 @@ class Stock {
   final double changeRate;
   final List<Candle> candles;
   final double? targetPrice;
+  final DataSource? dataSource;
 
   const Stock({
     required this.code,
@@ -20,6 +23,7 @@ class Stock {
     this.changeRate = 0,
     this.candles = const [],
     this.targetPrice,
+    this.dataSource,
   });
 
   Stock copyWith({
@@ -27,6 +31,7 @@ class Stock {
     double? changeRate,
     List<Candle>? candles,
     Object? targetPrice = _sentinel,
+    DataSource? dataSource,
   }) {
     return Stock(
       code: code,
@@ -36,6 +41,7 @@ class Stock {
       candles: candles ?? this.candles,
       targetPrice:
           targetPrice == _sentinel ? this.targetPrice : targetPrice as double?,
+      dataSource: dataSource ?? this.dataSource,
     );
   }
 
