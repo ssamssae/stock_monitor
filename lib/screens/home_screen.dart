@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/stock.dart';
 import '../services/krx_service.dart';
 import '../services/watchlist_service.dart';
+import '../widgets/portfolio_summary_widget.dart';
 import 'detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -181,10 +182,14 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           ListView.separated(
             physics: const AlwaysScrollableScrollPhysics(),
-            itemCount: displayList.length,
+            itemCount: displayList.length + (_stocks.isNotEmpty ? 1 : 0),
             separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, i) {
-              final stock = displayList[i];
+              if (_stocks.isNotEmpty && i == 0) {
+                return PortfolioSummaryWidget(stocks: _stocks);
+              }
+              final stockIndex = _stocks.isNotEmpty ? i - 1 : i;
+              final stock = displayList[stockIndex];
               return Dismissible(
                 key: ValueKey(stock.code),
                 direction: DismissDirection.endToStart,
