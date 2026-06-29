@@ -31,6 +31,7 @@ void main() {
     );
 
     expect(find.text('포트폴리오 합계'), findsOneWidget);
+    expect(find.text('2개 종목 반영'), findsOneWidget);
     expect(find.text('210,000원'), findsOneWidget);
     expect(find.text('-2,164원'), findsOneWidget);
     expect(find.text('-1.02%'), findsOneWidget);
@@ -56,6 +57,7 @@ void main() {
     );
 
     expect(find.text('70,000원'), findsOneWidget);
+    expect(find.text('1개 종목 반영'), findsOneWidget);
     expect(find.text('+693원'), findsOneWidget);
     expect(find.text('+1.00%'), findsOneWidget);
   });

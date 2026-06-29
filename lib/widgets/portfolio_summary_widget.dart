@@ -39,7 +39,21 @@ class PortfolioSummaryWidget extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('포트폴리오 합계', style: Theme.of(context).textTheme.labelLarge),
+              Row(
+                children: [
+                  Text(
+                    '포트폴리오 합계',
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${loadedStocks.length}개 종목 반영',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 10),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
