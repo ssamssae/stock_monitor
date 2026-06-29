@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/stock.dart';
 import '../services/krx_service.dart';
 import '../services/watchlist_service.dart';
+import '../utils/stock_code_formatter.dart';
 import '../widgets/portfolio_summary_widget.dart';
 import 'detail_screen.dart';
 
@@ -262,10 +264,16 @@ class _AddStockDialogState extends State<_AddStockDialog> {
               decoration: const InputDecoration(
                 labelText: '종목 코드',
                 hintText: '예: 005930',
+                helperText: '6자리 숫자',
+                counterText: '',
               ),
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(6),
+              ],
               keyboardType: TextInputType.number,
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? '종목 코드를 입력하세요' : null,
+              maxLength: 6,
+              validator: (v) => stockCodeValidationMessage(v ?? ''),
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -303,11 +311,12 @@ class _AddStockDialogState extends State<_AddStockDialog> {
         ElevatedButton(
           onPressed: () {
             if (_formKey.currentState!.validate()) {
+              final code = normalizeStockCode(_codeCtrl.text);
               final targetRaw = _targetCtrl.text.trim();
               Navigator.pop(
                 context,
                 Stock(
-                  code: _codeCtrl.text.trim(),
+                  code: code,
                   name: _nameCtrl.text.trim(),
                   targetPrice: targetRaw.isEmpty
                       ? null
