@@ -26,64 +26,75 @@ class PortfolioSummaryWidget extends StatelessWidget {
         : (totalChange / previousTotal) * 100;
     final up = totalChange >= 0;
     final changeColor = up ? Colors.red : Colors.blue;
+    final changePrefix = up ? '+' : '';
+    final summaryLabel =
+        '포트폴리오 합계, ${loadedStocks.length}개 종목 반영, 총 ${_fmtWon(totalValue)}원, '
+        '전일 대비 $changePrefix${_fmtWon(totalChange)}원 '
+        '($changePrefix${totalChangeRate.toStringAsFixed(2)}%)';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+      child: Semantics(
+        container: true,
+        label: summaryLabel,
+        child: ExcludeSemantics(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '포트폴리오 합계',
-                    style: Theme.of(context).textTheme.labelLarge,
-                  ),
-                  const Spacer(),
-                  Text(
-                    '${loadedStocks.length}개 종목 반영',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: Text(
-                      '${_fmtWon(totalValue)}원',
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                  Row(
                     children: [
                       Text(
-                        '${up ? '+' : ''}${_fmtWon(totalChange)}원',
-                        style: TextStyle(
-                          color: changeColor,
-                          fontWeight: FontWeight.w700,
+                        '포트폴리오 합계',
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${loadedStocks.length}개 종목 반영',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
-                      Text(
-                        '${up ? '+' : ''}${totalChangeRate.toStringAsFixed(2)}%',
-                        style: TextStyle(color: changeColor, fontSize: 12),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${_fmtWon(totalValue)}원',
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '$changePrefix${_fmtWon(totalChange)}원',
+                            style: TextStyle(
+                              color: changeColor,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            '$changePrefix${totalChangeRate.toStringAsFixed(2)}%',
+                            style: TextStyle(color: changeColor, fontSize: 12),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
         ),
       ),

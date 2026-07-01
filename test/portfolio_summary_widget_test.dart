@@ -35,6 +35,15 @@ void main() {
     expect(find.text('210,000원'), findsOneWidget);
     expect(find.text('-2,164원'), findsOneWidget);
     expect(find.text('-1.02%'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Semantics &&
+            widget.properties.label ==
+                '포트폴리오 합계, 2개 종목 반영, 총 210,000원, 전일 대비 -2,164원 (-1.02%)',
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('ignores stocks without a loaded price', (tester) async {
